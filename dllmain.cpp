@@ -3,51 +3,7 @@
 #include <iostream>
 #include <windows.h>
 #include <shlwapi.h>
-
-#define DAT_B(ADDR) *((byte*)ADDR)
-#define DAT_W(ADDR) *((short*)ADDR)
-#define DAT_DW(ADDR) *((int*)ADDR)
-
-#define CLOGO_INIT_CALL_ADDR 0x041e477
-
-#define CTITLE_SIZE ((void*)0x698)
-#define CSELECT_SIZE ((void*)0x50c0)
-
-typedef void*(__thiscall * CSceneInit_fun)(void*);
-
-enum {
-    SCENE_INTRO,
-    SCENE_UNKNOWN,
-    SCENE_CTITLE,
-    SCENE_CSELECT
-};
-
-struct PlayerInfo {
-    int Character;
-    byte padding1;
-    byte Palette;
-    byte padding2;
-    byte Deck;
-};
-
-int* SceneIDNew = (int*)0x8A0040;
-int* SceneIDOld = (int*)0x8A0044;
-
-HANDLE* LGThread = (HANDLE*)0x089fff4;
-auto LoadGraphicsFun = (void (*)())0x408410;
-
-//Apprently you have to use Soku's new and delete
-auto SokuNew = (void* (__cdecl *)(void*))0x81fbdc;
-auto SokuDelete = (void (__cdecl *)(void*))0x81F6FA; 
-
-auto CTitleInit = (CSceneInit_fun)0x0427d00;
-auto CSelectInit = (CSceneInit_fun)0x0424280;
-
-int* CSelectType = (int*)0x898690;
-int* CSelectSubtype = (int*)0x898688;
-
-PlayerInfo* P1Info = (PlayerInfo*)0x0899d10;
-PlayerInfo* P2Info = (PlayerInfo*)0x0899d30;
+#include "Soku.hpp"
 
 char ConfigPath[1024 + MAX_PATH];
 
@@ -67,23 +23,7 @@ inline DWORD HookNear(DWORD addr, DWORD target) {
     return old;
 }
 
-void GotoCSelectTrimmed(int Type, int Subtype) {
-    auto FUN_043e8f0 = (int(*)(int))0x043e8f0;
-
-    *CSelectSubtype = Subtype;
-    *CSelectType = Type;
-
-    //Input ptr related stuff
-    DAT_DW(0x0898680) = 0x08986a8;
-    DAT_B(0x0898678) = 0xff;
-
-    //???
-    //Crashes after stage select without it though
-    FUN_043e8f0(2);
-    return;
-}
-
-void LoadPlayerConfig(PlayerInfo* p, const char* key) {
+void LoadPlayerConfig(Soku::PlayerInfo* p, const char* key) {
     p->Character = GetPrivateProfileIntA(key, "character", 0, ConfigPath);
     p->Palette = GetPrivateProfileIntA(key, "palette", 0, ConfigPath);
     p->Deck = GetPrivateProfileIntA(key, "deck", 0, ConfigPath);
@@ -92,34 +32,42 @@ void LoadPlayerConfig(PlayerInfo* p, const char* key) {
 void* __fastcall Setup(void *CScene) {
     int Scene = GetPrivateProfileIntA("GLOBAL", "scene_id", 0, ConfigPath);
 
-    *SceneIDNew = Scene;
+    *Soku::SceneID_New = Scene;
 
     if (Scene == SCENE_CSELECT) {
-        SokuDelete(CScene);
+        Soku::Delete(CScene);
 
-        LoadPlayerConfig(P1Info, "P1");
-        LoadPlayerConfig(P2Info, "P2");
+        LoadPlayerConfig(Soku::P1Info, "P1");
+        LoadPlayerConfig(Soku::P2Info, "P2");
 
         int Type = GetPrivateProfileIntA("GLOBAL", "type", 0, ConfigPath);
         int Subtype = GetPrivateProfileIntA("GLOBAL", "subtype", 0, ConfigPath);
 
-        GotoCSelectTrimmed(Type, Subtype);
+        Soku::GotoCSelect(Type, Subtype);
 
-        CScene = SokuNew(CSELECT_SIZE);
+        CScene = Soku::New(CSELECT_SIZE);
 
-        return CSelectInit(CScene);
+        return Soku::CSelectInit(CScene);
     }
     else if (Scene == SCENE_CTITLE) {
-        SokuDelete(CScene);
+        Soku::Delete(CScene);
 
-        *SceneIDOld = SCENE_CSELECT;
+        //Make the game think we came from CharSelect so it skips the intro
+        *Soku::SceneID_Old = SCENE_CSELECT;
 
-        CScene = SokuNew(CTITLE_SIZE);
+        CScene = Soku::New(CTITLE_SIZE);
 
-        return CTitleInit(CScene);
+        void* ret = Soku::CTitleInit(CScene);
+
+        MenuEnum Menu = (MenuEnum)GetPrivateProfileIntA("GLOBAL", "menu_id", 0, ConfigPath);
+        if (Menu) {
+            Soku::AddCMenuObj(Soku::CreateMenu(Menu));
+        }
+
+        return ret;
     }
     else {
-        *LGThread = CreateThread((LPSECURITY_ATTRIBUTES)0x0, 0, (LPTHREAD_START_ROUTINE)LoadGraphicsFun, (LPVOID)0x0, 0, (LPDWORD)0x089fff8);
+        *Soku::LGThread = CreateThread((LPSECURITY_ATTRIBUTES)0x0, 0, (LPTHREAD_START_ROUTINE)Soku::LoadGraphicsFun, (LPVOID)0x0, 0, (LPDWORD)0x089fff8);
 
         return CLogoInit(CScene);
     }

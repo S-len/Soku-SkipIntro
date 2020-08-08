@@ -2,7 +2,9 @@
 A Soku intro skip module. 
 
 ## Features
-Lets you skip the usually unskippable intro and either go directly into the menu, or into practice mode (where it also lets you configure character/deck/palette)
+Lets you skip the usually unskippable intro and either:
+* go directly into the title screen (where it lets you also go directly into a menu)
+* or into practice mode (where it also lets you configure character/deck/palette).
 
 ## Usage
 Just place the module in your /Module/ folder and either configure the SkipIntro.ini file by hand or via SokuEngine.

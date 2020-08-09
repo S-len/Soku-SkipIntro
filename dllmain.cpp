@@ -7,7 +7,7 @@
 
 char ConfigPath[1024 + MAX_PATH];
 
-CSceneInit_fun CLogoInit;
+Init_fun CLogoInit;
 
 inline DWORD HookNear(DWORD addr, DWORD target) {
     DWORD oldProtect;
@@ -30,13 +30,13 @@ void LoadPlayerConfig(Soku::PlayerInfo* p, const char* key) {
 }
 
 void* __fastcall Setup(void *CScene) {
-    int Scene = GetPrivateProfileIntA("GLOBAL", "scene_id", 0, ConfigPath);
+    SceneEnum Scene = (SceneEnum)GetPrivateProfileIntA("GLOBAL", "scene_id", 0, ConfigPath);
 
     *Soku::SceneID_New = Scene;
 
-    if (Scene == SCENE_CSELECT) {
-        Soku::Delete(CScene);
+    Soku::Delete(CScene);
 
+    if (Scene == SCENE_CSELECT) {
         LoadPlayerConfig(Soku::P1Info, "P1");
         LoadPlayerConfig(Soku::P2Info, "P2");
 
@@ -45,19 +45,13 @@ void* __fastcall Setup(void *CScene) {
 
         Soku::GotoCSelect(Type, Subtype);
 
-        CScene = Soku::New(CSELECT_SIZE);
-
-        return Soku::CSelectInit(CScene);
+        return Soku::CreateScene(Scene);
     }
     else if (Scene == SCENE_CTITLE) {
-        Soku::Delete(CScene);
-
         //Make the game think we came from CharSelect so it skips the intro
         *Soku::SceneID_Old = SCENE_CSELECT;
 
-        CScene = Soku::New(CTITLE_SIZE);
-
-        void* ret = Soku::CTitleInit(CScene);
+        void* ret = Soku::CreateScene(Scene);
 
         MenuEnum Menu = (MenuEnum)GetPrivateProfileIntA("GLOBAL", "menu_id", 0, ConfigPath);
         if (Menu) {
@@ -66,11 +60,7 @@ void* __fastcall Setup(void *CScene) {
 
         return ret;
     }
-    else {
-        *Soku::LGThread = CreateThread((LPSECURITY_ATTRIBUTES)0x0, 0, (LPTHREAD_START_ROUTINE)Soku::LoadGraphicsFun, (LPVOID)0x0, 0, (LPDWORD)0x089fff8);
-
-        return CLogoInit(CScene);
-    }
+    else return Soku::CreateScene(Scene);
 }
 
 extern "C" __declspec(dllexport) bool CheckVersion(const BYTE hash[16]) {
@@ -83,7 +73,7 @@ extern "C" __declspec(dllexport) void Initialize(HMODULE hMyModule, HMODULE hPar
     PathRemoveFileSpecA(ConfigPath);
     PathAppendA(ConfigPath, "SkipIntro.ini");
 
-    CLogoInit = (CSceneInit_fun)HookNear(CLOGO_INIT_CALL_ADDR, (DWORD)Setup);
+    CLogoInit = (Init_fun)HookNear(CLOGO_INIT_CALL_ADDR, (DWORD)Setup);
 }
 
 extern "C" int APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpReserved) {

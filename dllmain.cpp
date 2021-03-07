@@ -69,6 +69,11 @@ extern "C" __declspec(dllexport) bool CheckVersion(const BYTE hash[16]) {
 
 extern "C" __declspec(dllexport) void Initialize(HMODULE hMyModule, HMODULE hParentModule)
 {
+    if (__argc == 2 && StrStrI(__argv[1], "rep")) {
+        // don't try to hook anything if we're fast-starting a replay
+        return;
+    }
+
     GetModuleFileNameA(hMyModule, ConfigPath, 1024);
     PathRemoveFileSpecA(ConfigPath);
     PathAppendA(ConfigPath, "SkipIntro.ini");

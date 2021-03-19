@@ -1,7 +1,7 @@
 #pragma once
 #include <Windows.h>
 
-#define CLOGO_INIT_CALL_ADDR 0x041e477
+#define SOKUSETUP_CALL_ADDR 0x7fb871
 
 #define DAT_B(ADDR) *((byte*)ADDR)
 #define DAT_W(ADDR) *((short*)ADDR)
@@ -64,32 +64,6 @@ namespace Soku {
         {0x2B0 , (Init_fun)0x0445a20},  //Config
     };
 
-    InitInfo Scenes[] = {
-        {0x198 , (Init_fun)0x041f960},  //CLogo
-        {0xA0  , (Init_fun)0x041fb40},  //Unknown
-        {0x698 , (Init_fun)0x0427d00},  //CTitle
-        {0x50C0, (Init_fun)0x0424280},  //CSelect
-        {0x0   , (Init_fun)0x0      },  //Empty
-        {0x8   , (Init_fun)0x041e030},  //Unknown
-        {0x138 , (Init_fun)0x041f6b0},  //Unknown
-        {0x0   , (Init_fun)0x0      },  //Empty
-        {0x50C4, (Init_fun)0x041e260},  //Unknown
-        {0x50C4, (Init_fun)0x041e2c0},  //Unknown
-        {0x138 , (Init_fun)0x041e280},  //Unknown
-        {0x0   , (Init_fun)0x0      },  //Empty
-        {0x138 , (Init_fun)0x041e2e0},  //Unknown
-        {0x1E4 , (Init_fun)0x0428c60},  //Unknown
-        {0xC   , (Init_fun)0x041e2a0},  //Unknown
-        {0xC   , (Init_fun)0x041e300},  //Unknown
-        {0x8   , (Init_fun)0x041e320},  //Unknown
-        {0x1428, (Init_fun)0x0426900},  //Unknown
-        {0x0   , (Init_fun)0x0      },  //Empty
-        {0x0   , (Init_fun)0x0      },  //Empty
-        {0x0   , (Init_fun)0x0      },  //Empty
-        {0x0   , (Init_fun)0x0      },  //Empty
-        {0x98  , (Init_fun)0x041f4b0},  //Unknown
-    };
-
     struct PlayerInfo {
         int Character;
         byte padding1;
@@ -98,11 +72,24 @@ namespace Soku {
         byte Deck;
     };
 
-    int* SceneID_New = (int*)0x8A0040;
-    int* SceneID_Old = (int*)0x8A0044;
-
-    //HANDLE* LGThread = (HANDLE*)0x89fff4;
-    //auto LoadGraphicsFun = (void (*)())0x408410;
+    struct SetupConfig {
+        HWND hwnd;
+        HINSTANCE hInstance;
+        int field_0x8;
+        int field_0xc;
+        int field_0x10;
+        void* CSceneManagerPtr;
+        int mStartSceneID;
+        void* CFadePtr;
+        bool mDxInitFlag;
+        bool HandleInputFlag;
+        bool HandleSoundFlag;
+        bool field_0x23;
+        bool mShowCursorFlag;
+        bool field_0x25;
+        bool field_0x26;
+        bool field_0x27;
+    };
 
     //Apprently you have to use Soku's new and delete
     auto New = (void* (__cdecl*)(DWORD))0x81fbdc;
@@ -134,9 +121,5 @@ namespace Soku {
 
     inline void* CreateMenu(MenuEnum id) {
         return Menus[id].Init(New(Menus[id].Size));
-    }
-
-    inline void* CreateScene(SceneEnum id) {
-        return Scenes[id].Init(New(Scenes[id].Size));
     }
 }

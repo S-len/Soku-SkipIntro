@@ -5,9 +5,11 @@
 #include <shlwapi.h>
 #include "Soku.hpp"
 
+typedef bool (__thiscall* SokuSetup_fun)(void*, Soku::SetupConfig*);
+
 char ConfigPath[1024 + MAX_PATH];
 
-Init_fun CLogoInit;
+SokuSetup_fun Old_SokuSetup;
 
 inline DWORD HookNear(DWORD addr, DWORD target) {
     DWORD oldProtect;
@@ -29,13 +31,12 @@ void LoadPlayerConfig(Soku::PlayerInfo* p, const char* key) {
     p->Deck = GetPrivateProfileIntA(key, "deck", 0, ConfigPath);
 }
 
-void* __fastcall Setup(void *CScene) {
+bool __fastcall Hooked_SokuSetup(void *DxWinHwnd, void *EDX, Soku::SetupConfig *config) {
     SceneEnum Scene = (SceneEnum)GetPrivateProfileIntA("GLOBAL", "scene_id", 0, ConfigPath);
+    config->mStartSceneID = Scene;
 
-    *Soku::SceneID_New = Scene;
-
-    Soku::Delete(CScene);
-
+    bool ret = Old_SokuSetup(DxWinHwnd, config);
+    
     if (Scene == SCENE_CSELECT) {
         LoadPlayerConfig(Soku::P1Info, "P1");
         LoadPlayerConfig(Soku::P2Info, "P2");
@@ -44,23 +45,15 @@ void* __fastcall Setup(void *CScene) {
         int Subtype = GetPrivateProfileIntA("GLOBAL", "subtype", 0, ConfigPath);
 
         Soku::GotoCSelect(Type, Subtype);
-
-        return Soku::CreateScene(Scene);
     }
     else if (Scene == SCENE_CTITLE) {
-        //Make the game think we came from CharSelect so it skips the intro
-        *Soku::SceneID_Old = SCENE_CSELECT;
-
-        void* ret = Soku::CreateScene(Scene);
-
         MenuEnum Menu = (MenuEnum)GetPrivateProfileIntA("GLOBAL", "menu_id", 0, ConfigPath);
         if (Menu) {
             Soku::AddCMenuObj(Soku::CreateMenu(Menu));
         }
-
-        return ret;
     }
-    else return Soku::CreateScene(Scene);
+
+    return ret;
 }
 
 extern "C" __declspec(dllexport) bool CheckVersion(const BYTE hash[16]) {
@@ -78,7 +71,7 @@ extern "C" __declspec(dllexport) void Initialize(HMODULE hMyModule, HMODULE hPar
     PathRemoveFileSpecA(ConfigPath);
     PathAppendA(ConfigPath, "SkipIntro.ini");
 
-    CLogoInit = (Init_fun)HookNear(CLOGO_INIT_CALL_ADDR, (DWORD)Setup);
+    Old_SokuSetup = (SokuSetup_fun)HookNear(SOKUSETUP_CALL_ADDR, (DWORD)Hooked_SokuSetup);
 }
 
 extern "C" int APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpReserved) {

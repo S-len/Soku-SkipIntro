@@ -67,11 +67,11 @@ extern "C" __declspec(dllexport) bool CheckVersion(const BYTE hash[16]) {
     return TRUE;
 }
 
-extern "C" __declspec(dllexport) void Initialize(HMODULE hMyModule, HMODULE hParentModule)
+extern "C" __declspec(dllexport) bool Initialize(HMODULE hMyModule, HMODULE hParentModule)
 {
-    if (__argc == 2 && StrStrI(__argv[1], "rep")) {
+    if (__argc == 2 && !StrStrI(__argv[1], ".ini")) {
         // don't try to hook anything if we're fast-starting a replay
-        return;
+        return true;
     }
 
     GetModuleFileNameA(hMyModule, ConfigPath, 1024);
@@ -79,6 +79,7 @@ extern "C" __declspec(dllexport) void Initialize(HMODULE hMyModule, HMODULE hPar
     PathAppendA(ConfigPath, "SkipIntro.ini");
 
     CLogoInit = (Init_fun)HookNear(CLOGO_INIT_CALL_ADDR, (DWORD)Setup);
+    return true;
 }
 
 extern "C" int APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpReserved) {
